@@ -36,32 +36,44 @@ class ChessPiece
 			{
 				case ChessPieceType.King:
 				{
-					return '&#9812;'
+					return /* html */ `
+					<img src="/res/svg/pieces/white/king.svg">
+					`
 				}
 
 				case ChessPieceType.Queen:
 				{
-					return '&#9813;'
+					return /* html */ `
+					<img src="/res/svg/pieces/white/queen.svg">
+					`
 				}
 
 				case ChessPieceType.Rook:
 				{
-					return '&#9814;'
+					return /* html */ `
+					<img src="/res/svg/pieces/white/rook.svg">
+					`
 				}
 
 				case ChessPieceType.Bishop:
 				{
-					return '&#9815;'
+					return /* html */ `
+					<img src="/res/svg/pieces/white/bishop.svg">
+					`
 				}
 
 				case ChessPieceType.Knight:
 				{
-					return '&#9816;'
+					return /* html */ `
+					<img src="/res/svg/pieces/white/knight.svg">
+					`
 				}
 
 				case ChessPieceType.Pawn:
 				{
-					return '&#9817;'
+					return /* html */ `
+					<img src="/res/svg/pieces/white/pawn.svg">
+					`
 				}
 			}
 		}
@@ -70,32 +82,44 @@ class ChessPiece
 		{
 			case ChessPieceType.King:
 			{
-				return '&#9818;'
+				return /* html */ `
+				<img src="/res/svg/pieces/black/king.svg">
+				`
 			}
 
 			case ChessPieceType.Queen:
 			{
-				return '&#9819;'
+				return /* html */ `
+				<img src="/res/svg/pieces/black/queen.svg">
+				`
 			}
 
 			case ChessPieceType.Rook:
 			{
-				return '&#9820;'
+				return /* html */ `
+				<img src="/res/svg/pieces/black/rook.svg">
+				`
 			}
 
 			case ChessPieceType.Bishop:
 			{
-				return '&#9821;'
+				return /* html */ `
+				<img src="/res/svg/pieces/black/bishop.svg">
+				`
 			}
 
 			case ChessPieceType.Knight:
 			{
-				return '&#9822;'
+				return /* html */ `
+				<img src="/res/svg/pieces/black/knight.svg">
+				`
 			}
 
 			case ChessPieceType.Pawn:
 			{
-				return '&#9823;'
+				return /* html */ `
+				<img src="/res/svg/pieces/black/pawn.svg">
+				`
 			}
 		}
 	}
@@ -131,6 +155,16 @@ class ChessBoard
 		const y = coord.charCodeAt(1) - '1'.charCodeAt(0)
 
 		return [ x, y ]
+	}
+
+	squareColour(x: number, y: number)
+	{
+		if ((x + y) % 2 == 0)
+		{
+			return Colour.Black
+		}
+
+		return Colour.White
 	}
 
 	set(coord: string, pieceType: ChessPieceType, colour: Colour)
@@ -179,9 +213,30 @@ class ChessBoard
 			{
 				const cell = document.createElement('td')
 
+				if (this.squareColour(x, y) == Colour.Black)
+				{
+					cell.innerHTML += /* html */ `
+					<div class="square">
+						<img src="/res/svg/board/dark-square.svg">
+					</div>
+					`
+				}
+				else
+				{
+					cell.innerHTML += /* html */ `
+					<div class="square">
+						<img src="/res/svg/board/light-square.svg">
+					</div>
+					`
+				}
+
 				if (this.board[y][x] != null)
 				{
-					cell.innerHTML = this.board[y][x].svg()
+					cell.innerHTML += /* html */ `
+					<div class="piece">
+						${ this.board[y][x].svg() }
+					</div>
+					`
 				}
 
 				row.appendChild(cell)
@@ -250,3 +305,7 @@ class ChessBoard
 		return board
 	}
 }
+
+addEventListener('DOMContentLoaded', () => {
+	ChessBoard.generateDefault().render(document.querySelector('.board'))
+})
