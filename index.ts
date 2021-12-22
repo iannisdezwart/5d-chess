@@ -126,26 +126,82 @@ class ChessPiece
 }
 
 /**
+ * Class representing the map of all chess boards.
+ * Holds the entire 5D map of individual chess boards.
+ */
+class ChessBoardMap
+{
+	root: ChessBoard
+	map: ChessBoard[][] = []
+	minTimeline = 0
+
+	constructor(player: Colour)
+	{
+		this.root = ChessBoard.generateDefault(this, player, 0)
+		this.map = [ [ this.root ] ]
+	}
+
+	get(x: number, y: number)
+	{
+		return this.map[y - this.minTimeline][x]
+	}
+
+	render(mapEl: HTMLElement)
+	{
+		this.root.render(mapEl)
+	}
+}
+
+/**
  * 5D chess board. Holds the pieces, a reference to the previous board,
  * and references to the next boards.
  */
 class ChessBoard
 {
+	boardMap: ChessBoardMap
+
 	board: ChessPiece[][]
-	prev: ChessBoard
+	timeline: number
+
 	next: ChessBoard[]
+	player: Colour
 
-	constructor(board: ChessPiece[][], prev: ChessBoard)
+	boardEl: HTMLElement
+	draggingPiece: HTMLElement = null
+	draggingPieceSquare: number[] = null
+
+	constructor(boardMap: ChessBoardMap, board: ChessPiece[][],
+		player: Colour, timeline: number)
 	{
+		this.boardMap = boardMap
 		this.board = board
-		this.prev = prev
+		this.timeline = timeline
+
 		this.next = []
+		this.player = player
+	}
 
-		// Link this board to the previous board.
-
-		if (prev != null)
+	translatePointerPositionToSquare(x: number, y: number)
+	{
+		if (this.player == Colour.White)
 		{
-			prev.next.push(this)
+			return [ x, 7 - y ]
+		}
+		else
+		{
+			return [ 7 - x, y ]
+		}
+	}
+
+	pieceAt(x: number, y: number)
+	{
+		if (this.player == Colour.White)
+		{
+			return this.board[y][x]
+		}
+		else
+		{
+			return this.board[7 - y][7 - x]
 		}
 	}
 
@@ -176,7 +232,7 @@ class ChessBoard
 
 	clone()
 	{
-		const board = ChessBoard.empty()
+		const board = ChessBoard.empty(this.boardMap, this.player, this.timeline)
 
 		for (let y = 0; y < 8; y++)
 		{
@@ -189,21 +245,31 @@ class ChessBoard
 		return board
 	}
 
-	move(from: string, to: string)
+	move(xFrom: number, yFrom: number, xTo: number, yTo: number)
 	{
 		const newBoard = this.clone()
-		const [ x1, y1 ] = this.decodeCoord(from)
-		const [ x2, y2 ] = this.decodeCoord(to)
 
-		newBoard.board[y2][x2] = newBoard.board[y1][x1]
-		newBoard.board[y1][x1] = null
+		newBoard.board[yTo][xTo] = newBoard.board[yFrom][xFrom]
+		newBoard.board[yFrom][xFrom] = null
 
 		return newBoard
 	}
 
+	makeMove(xFrom: number, yFrom: number, xTo: number, yTo: number)
+	{
+		const newBoard = this.move(xFrom, yFrom, xTo, yTo)
+
+		newBoard.player = this.player == Colour.White ? Colour.Black : Colour.White
+
+		this.next.push(newBoard)
+	}
+
 	render(el: HTMLElement)
 	{
-		const table = document.createElement('table')
+		this.boardEl = document.createElement('table')
+		this.boardEl.classList.add('board')
+
+		const flipped = this.player == Colour.White
 
 		for (let y = 7; y >= 0; y--)
 		{
@@ -230,11 +296,13 @@ class ChessBoard
 					`
 				}
 
-				if (this.board[y][x] != null)
+				if (this.pieceAt(x, y) != null)
 				{
+					// Todo: check if the piece is selectable.
+
 					cell.innerHTML += /* html */ `
-					<div class="piece">
-						${ this.board[y][x].svg() }
+					<div class="selectable piece">
+						${ this.pieceAt(x, y).svg() }
 					</div>
 					`
 				}
@@ -242,16 +310,83 @@ class ChessBoard
 				row.appendChild(cell)
 			}
 
-			table.appendChild(row)
+			this.boardEl.appendChild(row)
 		}
 
+		this.boardEl.addEventListener('mousedown', this.mouseDownHandler.bind(this))
+		this.boardEl.addEventListener('touchstart', this.mouseDownHandler.bind(this))
+
+		this.boardEl.addEventListener('mousemove', this.mouseMoveHandler.bind(this))
+		this.boardEl.addEventListener('touchmove', this.mouseMoveHandler.bind(this))
+
+		this.boardEl.addEventListener('mouseup', this.mouseUpHandler.bind(this))
+		this.boardEl.addEventListener('toucheend', this.mouseUpHandler.bind(this))
+
 		el.innerHTML = ''
-		el.appendChild(table)
+		el.appendChild(this.boardEl)
 	}
 
-	static empty()
+	pointedSquare(e: MouseEvent)
 	{
-		const board = new ChessBoard([], null)
+		const boardRect = this.boardEl.getBoundingClientRect()
+		const { clientX, clientY } = e
+
+		const x = Math.floor((clientX - boardRect.x) / boardRect.width * 8)
+		const y = Math.floor((clientY - boardRect.y) / boardRect.height * 8)
+
+		return this.translatePointerPositionToSquare(x, y)
+	}
+
+	mouseDownHandler(e: MouseEvent)
+	{
+		const target = e.target as HTMLElement
+
+		if (!target.classList.contains('piece'))
+		{
+			return
+		}
+
+		this.draggingPiece = target
+		this.draggingPieceSquare = this.pointedSquare(e)
+	}
+
+	mouseMoveHandler(e: MouseEvent)
+	{
+		if (this.draggingPiece == null)
+		{
+			return
+		}
+
+		const { clientX, clientY } = e
+		const img = this.draggingPiece.querySelector<HTMLImageElement>('img')
+		const rect = this.draggingPiece.getBoundingClientRect()
+
+		const x = (clientX - rect.x) / rect.width * 100 - rect.width / 2
+		const y = (clientY - rect.y) / rect.height * 100 - rect.height / 2
+
+		img.style.transform = `translate(${ x }%, ${ y }%)`
+	}
+
+	mouseUpHandler(e: MouseEvent)
+	{
+		if (this.draggingPiece == null)
+		{
+			return
+		}
+
+		const [ xFrom, yFrom ] = this.draggingPieceSquare
+		const [ xTo, yTo ] = this.pointedSquare(e)
+		const img = this.draggingPiece.querySelector<HTMLImageElement>('img')
+
+		img.style.transform = ''
+		this.draggingPiece = null
+
+		this.makeMove(xFrom, yFrom, xTo, yTo)
+	}
+
+	static empty(boardMap: ChessBoardMap, player: Colour, timeline: number)
+	{
+		const board = new ChessBoard(boardMap, [], player, timeline)
 
 		for (let y = 0; y < 8; y++)
 		{
@@ -261,9 +396,9 @@ class ChessBoard
 		return board
 	}
 
-	static generateDefault()
+	static generateDefault(boardMap: ChessBoardMap, player: Colour, timeline: number)
 	{
-		const board = ChessBoard.empty()
+		const board = ChessBoard.empty(boardMap, player, timeline)
 
 		// White back rank.
 
@@ -306,6 +441,9 @@ class ChessBoard
 	}
 }
 
+let map: ChessBoardMap
+
 addEventListener('DOMContentLoaded', () => {
-	ChessBoard.generateDefault().render(document.querySelector('.board'))
+	map = new ChessBoardMap(Colour.White)
+	map.render(document.querySelector('.chess-board-map'))
 })
