@@ -1,6 +1,29 @@
+:root
+{
+	--square-size: 2em;
+	--board-border-size: .5em;
+	--board-margin-size: 1em;
+	--board-size: calc(var(--square-size) * 8 + var(--board-border-size)
+		* 2 + var(--board-margin-size) * 2);
+}
+
 body
 {
 	margin: 0;
+	background-color: #777;
+	min-height: 100vh;
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.chess-board-map
+{
+	max-width: 100%;
+	max-height: 100%;
+	overflow: hidden;
+	padding: calc(50vh - var(--board-size) / 2) calc(50vw - var(--board-size) / 2);
 }
 
 .chess-board-map .row
@@ -8,17 +31,27 @@ body
 	display: flex;
 }
 
+.map
+{
+	display: inline-block; /* fixes padding in .chess-board-map */
+}
+
 .board
 {
-	--size: 2em;
 	user-select: none;
-	margin: 1em;
+	margin: var(--board-margin-size);
+	border: var(--board-border-size) solid #222;
+}
+
+.board.white-to-move
+{
+	border-color: #ddd;
 }
 
 .empty.board
 {
-	width: calc(var(--size) * 8);
-	height: calc(var(--size) * 8);
+	width: calc(var(--square-size) * 8);
+	height: calc(var(--square-size) * 8);
 }
 
 .board-row
@@ -30,8 +63,8 @@ body
 {
 	position: relative;
 
-	width: var(--size);
-	height: var(--size);
+	width: var(--square-size);
+	height: var(--square-size);
 
 	text-align: center;
 }
