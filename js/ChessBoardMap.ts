@@ -8,10 +8,12 @@ class ChessBoardMap
 	root: ChessBoard
 	map: ChessBoard[][] = []
 	minTimeline = 0
+	player: Colour
 
 	constructor(player: Colour, mapEl: HTMLElement)
 	{
-		this.root = ChessBoard.generateDefault(this, [ 0, 0 ], player)
+		this.player = player
+		this.root = ChessBoard.generateDefault(this, [ 0, 0 ], Colour.White)
 		this.root.legalStuff = new ChessBoardLegalStuff(this.root)
 		this.map = [ [ this.root ] ]
 		this.mapEl = mapEl
@@ -61,8 +63,12 @@ class ChessBoardMap
 		const newPos = chessBoard.boardMapPos.slice()
 		newPos[0]++
 
+		const nextTurn = chessBoard.turn == Colour.White
+			? Colour.Black
+			: Colour.White
+
 		const newBoard = new ChessBoard(this, newPos,
-			chessBoard.clonePieces(), chessBoard.player)
+			chessBoard.clonePieces(), nextTurn)
 
 		newBoard.legalStuff = chessBoard.legalStuff.clone(newBoard)
 
