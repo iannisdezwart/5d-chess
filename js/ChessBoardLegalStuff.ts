@@ -8,6 +8,11 @@ class Square
 		this.x = x
 		this.y = y
 	}
+
+	clone()
+	{
+		return new Square(this.x, this.y)
+	}
 }
 
 /**
@@ -119,6 +124,7 @@ class ChessBoardLegalStuff
 						if (piece != null && piece.is(
 							Colour.White, ChessPieceType.King))
 						{
+							console.log(`white is in check because (${ piece.type }) ${ x } ${ y } can move to ${ move.x } ${ move.y }`)
 							this.whiteKing = new Square(move.x, move.y)
 							return true
 						}
@@ -149,6 +155,7 @@ class ChessBoardLegalStuff
 						if (piece != null && piece.is(
 							Colour.Black, ChessPieceType.King))
 						{
+							console.log(`black is in check because (${ piece.type }) ${ x } ${ y } can move to ${ move.x } ${ move.y }`)
 							this.blackKing = new Square(move.x, move.y)
 							return true
 						}
@@ -208,12 +215,12 @@ class ChessBoardLegalStuff
 
 	ended()
 	{
-		if (this.board.player == Colour.White && !this.whiteCanMove())
+		if (this.board.turn == Colour.White && !this.whiteCanMove())
 		{
 			return true
 		}
 
-		if (this.board.player == Colour.Black && !this.blackCanMove())
+		if (this.board.turn == Colour.Black && !this.blackCanMove())
 		{
 			return true
 		}
@@ -281,9 +288,9 @@ class ChessBoardLegalStuff
 				&& leftEnPassant.is(Colour.Black, ChessPieceType.Pawn)
 				&& this.blackEnPassant[x - 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x - 1, y))
+				if (!checkCheck || this.isLegal(x, y, x - 1, y + 1))
 				{
-					moves.push(new Square(x - 1, y))
+					moves.push(new Square(x - 1, y + 1))
 				}
 			}
 
@@ -293,9 +300,9 @@ class ChessBoardLegalStuff
 				&& rightEnPassant.is(Colour.Black, ChessPieceType.Pawn)
 				&& this.blackEnPassant[x + 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x + 1, y))
+				if (!checkCheck || this.isLegal(x, y, x + 1, y + 1))
 				{
-					moves.push(new Square(x + 1, y))
+					moves.push(new Square(x + 1, y + 1))
 				}
 			}
 		}
@@ -344,9 +351,9 @@ class ChessBoardLegalStuff
 				&& leftEnPassant.is(Colour.White, ChessPieceType.Pawn)
 				&& this.whiteEnPassant[x - 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x - 1, y))
+				if (!checkCheck || this.isLegal(x, y, x - 1, y - 1))
 				{
-					moves.push(new Square(x - 1, y))
+					moves.push(new Square(x - 1, y - 1))
 				}
 			}
 
@@ -356,9 +363,9 @@ class ChessBoardLegalStuff
 				&& rightEnPassant.is(Colour.White, ChessPieceType.Pawn)
 				&& this.whiteEnPassant[x + 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x + 1, y))
+				if (!checkCheck || this.isLegal(x, y, x + 1, y - 1))
 				{
-					moves.push(new Square(x + 1, y))
+					moves.push(new Square(x + 1, y - 1))
 				}
 			}
 		}
@@ -378,7 +385,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.Black)
@@ -403,7 +410,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.Black)
@@ -428,7 +435,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.Black)
@@ -453,7 +460,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.Black)
@@ -481,7 +488,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.White)
@@ -506,7 +513,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.White)
@@ -531,7 +538,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.White)
@@ -556,7 +563,7 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
 				if (piece != null && piece.colour == Colour.White)
@@ -599,13 +606,13 @@ class ChessBoardLegalStuff
 
 			if (x + 1 < 8 && y - 2 >= 0)
 			{
-				const piece = this.board.pieceAt(x + 1, y - 1)
+				const piece = this.board.pieceAt(x + 1, y - 2)
 
 				if (piece == null || piece.colour != Colour.White)
 				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y - 1))
+					if (!checkCheck || this.isLegal(x, y, x + 1, y - 2))
 					{
-						moves.push(new Square(x + 1, y - 1))
+						moves.push(new Square(x + 1, y - 2))
 					}
 				}
 			}
@@ -798,10 +805,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -822,10 +829,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -846,10 +853,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -870,10 +877,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -897,10 +904,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -921,10 +928,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -945,10 +952,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -969,10 +976,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -996,10 +1003,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1021,10 +1028,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1046,10 +1053,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1071,10 +1078,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1096,10 +1103,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1120,10 +1127,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1144,10 +1151,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1168,10 +1175,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.Black)
+				if (piece != null && piece.colour == Colour.Black)
 				{
 					break
 				}
@@ -1195,10 +1202,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1220,10 +1227,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1245,10 +1252,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1270,10 +1277,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
 				{
-					moves.push(diag)
+					moves.push(diag.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1295,10 +1302,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1319,10 +1326,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1343,10 +1350,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1367,10 +1374,10 @@ class ChessBoardLegalStuff
 
 				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
 				{
-					moves.push(line)
+					moves.push(line.clone())
 				}
 
-				if (piece != null && piece.colour != Colour.White)
+				if (piece != null && piece.colour == Colour.White)
 				{
 					break
 				}
@@ -1668,7 +1675,7 @@ class ChessBoardLegalStuff
 
 		let check = false
 
-		if (this.board.player == Colour.White)
+		if (this.board.turn == Colour.White)
 		{
 			check = this.whiteInCheck()
 		}
