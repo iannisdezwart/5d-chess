@@ -1,6 +1,6 @@
 /**
- * 5D chess board. Holds the pieces, a reference to the previous board,
- * and references to the next boards.
+ * 5D chess board. Holds the pieces, legal stuff,
+ * and the HTML elements for the board.
  */
 class ChessBoard
 {
@@ -9,8 +9,7 @@ class ChessBoard
 
 	board: ChessPiece[][]
 
-	next: ChessBoard[]
-	player: Colour
+	turn: Colour
 
 	boardEl: HTMLElement
 	draggingPiece: HTMLElement = null
@@ -19,20 +18,19 @@ class ChessBoard
 	legalStuff: ChessBoardLegalStuff
 
 	constructor(boardMap: ChessBoardMap, boardMapPos: number[],
-		board: ChessPiece[][], player: Colour)
+		board: ChessPiece[][], turn: Colour)
 	{
 		this.boardMap = boardMap
 		this.boardMapPos = boardMapPos
 
 		this.board = board
 
-		this.next = []
-		this.player = player
+		this.turn = turn
 	}
 
 	translatePointerPositionToSquare(x: number, y: number)
 	{
-		if (this.player == Colour.White)
+		if (this.boardMap.player == Colour.White)
 		{
 			return [ x, 7 - y ]
 		}
@@ -44,7 +42,7 @@ class ChessBoard
 
 	pieceAt(x: number, y: number)
 	{
-		if (this.player == Colour.White)
+		if (this.boardMap.player == Colour.White)
 		{
 			return this.board[y][x]
 		}
@@ -187,39 +185,39 @@ class ChessBoard
 
 		// En passant
 
-		if (this.player == Colour.White)
+		if (newBoard.turn == Colour.White)
 		{
-			this.legalStuff.whiteEnPassant = Array(8).fill(false)
+			newBoard.legalStuff.whiteEnPassant = Array(8).fill(false)
 		}
 		else
 		{
-			this.legalStuff.blackEnPassant = Array(8).fill(false)
+			newBoard.legalStuff.blackEnPassant = Array(8).fill(false)
 		}
 
 		if (movedPiece.is(Colour.White, ChessPieceType.Pawn)
 			&& yTo - yFrom == 2)
 		{
-			this.legalStuff.whiteEnPassant[xFrom] = true;
+			newBoard.legalStuff.whiteEnPassant[xFrom] = true;
 		}
 
 		if (movedPiece.is(Colour.Black, ChessPieceType.Pawn)
 			&& yFrom - yTo == 2)
 		{
-			this.legalStuff.blackEnPassant[xFrom] = true;
+			newBoard.legalStuff.blackEnPassant[xFrom] = true;
 		}
 
 		if (movedPiece.is(Colour.White, ChessPieceType.Pawn)
-			&& this.legalStuff.blackEnPassant[xFrom]
+			&& this.legalStuff.blackEnPassant[xTo]
 			&& xTo != xFrom)
 		{
-			this.board[yFrom][xTo] = null
+			newBoard.board[yFrom][xTo] = null
 		}
 
 		if (movedPiece.is(Colour.Black, ChessPieceType.Pawn)
-			&& this.legalStuff.whiteEnPassant[xFrom]
+			&& this.legalStuff.whiteEnPassant[xTo]
 			&& xTo != xFrom)
 		{
-			this.board[yFrom][xTo] = null
+			newBoard.board[yFrom][xTo] = null
 		}
 
 		// Pawn promotion
@@ -310,6 +308,15 @@ class ChessBoard
 		this.boardEl = document.createElement('div')
 		this.boardEl.classList.add('board')
 
+		if (this.turn == Colour.White)
+		{
+			this.boardEl.classList.add('white-to-move')
+		}
+		else
+		{
+			this.boardEl.classList.add('black-to-move')
+		}
+
 		for (let y = 7; y >= 0; y--)
 		{
 			const row = document.createElement('div')
@@ -337,15 +344,28 @@ class ChessBoard
 					`
 				}
 
-				if (this.pieceAt(x, y) != null)
-				{
-					// Todo: check if the piece is selectable.
+				const piece = this.pieceAt(x, y)
 
-					cell.innerHTML += /* html */ `
-					<div class='selectable piece'>
-						${ this.pieceAt(x, y).svg() }
-					</div>
-					`
+				if (piece != null)
+				{
+					if (/* this.turn == this.boardMap.player
+						&& */ piece.colour == this.turn)
+					{
+						cell.innerHTML += /* html */ `
+						<div class='selectable piece'>
+							${ this.pieceAt(x, y).svg() }
+						</div>
+						`
+					}
+					else
+					{
+						cell.innerHTML += /* html */ `
+						<div class='piece'>
+							${ this.pieceAt(x, y).svg() }
+						</div>
+						`
+					}
+
 				}
 
 				row.appendChild(cell)
@@ -387,7 +407,8 @@ class ChessBoard
 	{
 		const target = e.target as HTMLElement
 
-		if (!target.classList.contains('piece'))
+		if (!target.classList.contains('piece')
+			|| !target.classList.contains('selectable'))
 		{
 			return
 		}
@@ -401,7 +422,6 @@ class ChessBoard
 
 		for (const { x, y } of legalMoves)
 		{
-			console.log(x, y)
 			const square = this.getSquare(x, y)
 
 			square.classList.add('legal-move')
@@ -439,6 +459,9 @@ class ChessBoard
 		const [ xFrom, yFrom ] = this.draggingPieceSquare
 		const [ xTo, yTo ] = this.pointedSquare(e)
 
+		const toSquare = this.getSquare(xTo, yTo)
+		const moveIsLegal = toSquare.classList.contains('legal-move')
+
 		const img = this.draggingPiece.querySelector<HTMLImageElement>('img')
 
 		img.style.transform = null
@@ -455,13 +478,18 @@ class ChessBoard
 			return
 		}
 
+		if (!moveIsLegal)
+		{
+			return
+		}
+
 		this.move(xFrom, yFrom, xTo, yTo)
 	}
 
 	static empty(boardMap: ChessBoardMap, boardMapPos: number[],
-		player: Colour)
+		turn: Colour)
 	{
-		const board = new ChessBoard(boardMap, boardMapPos, [], player)
+		const board = new ChessBoard(boardMap, boardMapPos, [], turn)
 
 		for (let y = 0; y < 8; y++)
 		{
@@ -472,9 +500,9 @@ class ChessBoard
 	}
 
 	static generateDefault(boardMap: ChessBoardMap, boardMapPos: number[],
-		player: Colour)
+		turn: Colour)
 	{
-		const board = ChessBoard.empty(boardMap, boardMapPos, player)
+		const board = ChessBoard.empty(boardMap, boardMapPos, turn)
 
 		// White back rank.
 
