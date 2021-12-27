@@ -6,6 +6,9 @@ Todo:
   - Make everything work on mobile.
   - Think about whether a pawn moving to another board can be taken en passant.
     Currently, it cannot.
+  - Add move indicators for moves within the same board
+  - Add arrows to indicate moves across boards.
+  - Add arrows to indicate timeline branches
 
 Doing:
   - Think about whether pawns can move two spaces into another dimension.

@@ -24,10 +24,10 @@ const MOUSE_MAP_MOVE_THRESHOLD = 0.1
 const MOUSE_MAP_MOVE_PX_PER_FRAME = 20
 
 const curPointerPos = [ innerWidth / 2, innerHeight / 2 ]
+const mapEl = document.querySelector('.chess-board-map') as HTMLElement
 
 const handleMouseScroll = () => {
 	const [ x, y ] = curPointerPos
-	const mapEl = document.querySelector('.chess-board-map') as HTMLElement
 
 	if (x < MOUSE_MAP_MOVE_THRESHOLD * innerWidth)
 	{

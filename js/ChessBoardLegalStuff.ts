@@ -278,15 +278,13 @@ class ChessBoardLegalStuff
 
 		if (piece != null && piece.colour == colour)
 		{
-			return false
+			return
 		}
 
 		if (!checkCheck || this.isLegal(x, y, square))
 		{
 			moves.push(square.clone())
 		}
-
-		return true
 	}
 
 	moveLine1Square(x: number, y: number, dimension: Dimension,
@@ -315,10 +313,29 @@ class ChessBoardLegalStuff
 
 		if (!square.exists() || square.getPiece() != null)
 		{
+			return false
+		}
+
+		this.moveLine1SquareHelper(x, y, movement,
+			moves, checkCheck, colour)
+
+		return true
+	}
+
+	moveForward2Squares(x: number, y: number, dimension: Dimension,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const magnitude = colour == Colour.White ? 2 : -2
+		const movement = { dimension, magnitude }
+
+		const square = this.square(x, y).relativeSquare([ movement ])
+
+		if (!square.exists() || square.getPiece() != null)
+		{
 			return
 		}
 
-		return this.moveLine1SquareHelper(x, y, movement,
+		this.moveLine1SquareHelper(x, y, movement,
 			moves, checkCheck, colour)
 	}
 
@@ -331,11 +348,8 @@ class ChessBoardLegalStuff
 			return
 		}
 
-		const magnitude = colour == Colour.White ? 2 : -2
-
-		this.moveLine1SquareHelper(x, y,
-			{ dimension, magnitude },
-			moves, checkCheck, colour)
+		this.moveForward2Squares(x, y, dimension, moves,
+			checkCheck, colour)
 	}
 
 	moveDiagHelper(x: number, y: number, movements: [ Movement, Movement ],
