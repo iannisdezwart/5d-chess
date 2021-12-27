@@ -24,6 +24,43 @@ class Square
 	}
 }
 
+/**
+ * Class representing a 2 dimensional timestamp.
+ * Holds the t and u coordinates of the timestamp.
+ */
+class TimeCoordinate
+{
+	t: number
+	u: number
+
+	constructor(t: number, u: number)
+	{
+		this.t = t
+		this.u = u
+	}
+
+	toString()
+	{
+		return `${ this.t }, ${ this.u }`
+	}
+
+	static fromString(str: string)
+	{
+		const parts = str.split(', ')
+		return new TimeCoordinate(+parts[0], +parts[1])
+	}
+
+	clone()
+	{
+		return new TimeCoordinate(this.t, this.u)
+	}
+
+	equals(other: TimeCoordinate)
+	{
+		return this.t == other.t && this.u == other.u
+	}
+}
+
 enum Dimension
 {
 	X, // Horizontal through space
@@ -77,8 +114,8 @@ class Square5D
 
 	static fromSquare2D(square: Square, board: ChessBoard)
 	{
-		return new Square5D(square.x, square.y, board.boardMapPos[0],
-			board.boardMapPos[1], board.boardMap)
+		return new Square5D(square.x, square.y, board.boardMapPos.t,
+			board.boardMapPos.u, board.boardMap)
 	}
 
 	clone()

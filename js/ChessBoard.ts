@@ -5,24 +5,20 @@
 class ChessBoard
 {
 	boardMap: ChessBoardMap
-	boardMapPos: number[]
+	boardMapPos: TimeCoordinate
 
 	board: ChessPiece[][]
-
-	turn: Colour
-
 	boardEl: HTMLElement
 
+	turn: Colour
 	legalStuff: ChessBoardLegalStuff
 
-	constructor(boardMap: ChessBoardMap, boardMapPos: number[],
+	constructor(boardMap: ChessBoardMap, boardMapPos: TimeCoordinate,
 		board: ChessPiece[][], turn: Colour)
 	{
 		this.boardMap = boardMap
 		this.boardMapPos = boardMapPos
-
 		this.board = board
-
 		this.turn = turn
 	}
 
@@ -104,11 +100,7 @@ class ChessBoard
 
 	move(fromSquare: Square5D, toSquare: Square5D)
 	{
-		if (fromSquare.getBoard() != toSquare.getBoard())
-		{
-			throw new Error('Moving to different boards is not implemented')
-		}
-
+		const toBoard = toSquare.getBoard()
 		const { x: xFrom, y: yFrom } = fromSquare
 		const { x: xTo, y: yTo } = toSquare
 
@@ -117,11 +109,33 @@ class ChessBoard
 			return
 		}
 
-		const newBoard = this.clone()
-		const movedPiece = newBoard.board[yFrom][xFrom]
+		// Create the new board. This board will be appended
+		// to the timeline of the current board.
+		// We have to remove the moved piece from the new board.
 
-		newBoard.board[yTo][xTo] = newBoard.board[yFrom][xFrom]
+		const newBoard = this.clone()
+		const movedPiece = this.board[yFrom][xFrom]
 		newBoard.board[yFrom][xFrom] = null
+
+		if (this == toBoard)
+		{
+			// Move the piece to the new board.
+
+			newBoard.board[yTo][xTo] = movedPiece
+		}
+		else
+		{
+			// Create a new universe and move the piece to
+			// the first board of that universe.
+
+			const newUniverseBoard = toBoard.clone()
+			newUniverseBoard.board[yTo][xTo] = movedPiece
+
+			// Special moves only apply when the piece is moved to the
+			// same board.
+
+			return
+		}
 
 		// Castling
 
@@ -303,10 +317,6 @@ class ChessBoard
 				}
 			}
 		}
-
-		this.boardMap.update()
-
-		return newBoard
 	}
 
 	render()
@@ -314,7 +324,7 @@ class ChessBoard
 		this.boardEl = document.createElement('div')
 		this.boardEl.classList.add('board')
 		this.boardEl.setAttribute('data-board-position',
-			this.boardMapPos.join(', '))
+			this.boardMapPos.toString())
 
 		if (this.turn == Colour.White)
 		{
@@ -385,7 +395,7 @@ class ChessBoard
 		return this.boardEl
 	}
 
-	static empty(boardMap: ChessBoardMap, boardMapPos: number[],
+	static empty(boardMap: ChessBoardMap, boardMapPos: TimeCoordinate,
 		turn: Colour)
 	{
 		const board = new ChessBoard(boardMap, boardMapPos, [], turn)
@@ -398,7 +408,7 @@ class ChessBoard
 		return board
 	}
 
-	static generateDefault(boardMap: ChessBoardMap, boardMapPos: number[],
+	static generateDefault(boardMap: ChessBoardMap, boardMapPos: TimeCoordinate,
 		turn: Colour)
 	{
 		const board = ChessBoard.empty(boardMap, boardMapPos, turn)

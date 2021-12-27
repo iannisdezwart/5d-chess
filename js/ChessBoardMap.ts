@@ -8,6 +8,7 @@ class ChessBoardMap
 	root: ChessBoard
 	map: ChessBoard[][] = []
 	minU = 0 // The minimum universe index
+	get maxU() { return this.map.length - this.minU - 1 }
 	player: Colour
 
 	draggingPiece: HTMLElement
@@ -16,7 +17,8 @@ class ChessBoardMap
 	constructor(player: Colour, mapEl: HTMLElement)
 	{
 		this.player = player
-		this.root = ChessBoard.generateDefault(this, [ 0, 0 ], Colour.White)
+		this.root = ChessBoard.generateDefault(this,
+			new TimeCoordinate(0, 0), Colour.White)
 		this.root.legalStuff = new ChessBoardLegalStuff(this.root)
 		this.map = [ [ this.root ] ]
 		this.mapEl = mapEl
@@ -54,15 +56,15 @@ class ChessBoardMap
 		}
 
 		const boardRect = target.getBoundingClientRect()
-		const boardPos = target.getAttribute('data-board-position')
-			.split(', ').map(x => +x)
-		const board = this.map[boardPos[1]][boardPos[0]]
+		const boardPos = TimeCoordinate.fromString(
+			target.getAttribute('data-board-position'))
+		const board = this.get(boardPos.t, boardPos.u)
 
 		const xSel = Math.floor((clientX - boardRect.x) / boardRect.width * 8)
 		const ySel = Math.floor((clientY - boardRect.y) / boardRect.height * 8)
 
 		const [ x, y ] = board.translatePointerPositionToSquare(xSel, ySel)
-		return new Square5D(x, y, boardPos[0], boardPos[1], this)
+		return new Square5D(x, y, boardPos.t, boardPos.u, this)
 	}
 
 	getSquare(square: Square5D)
@@ -148,6 +150,7 @@ class ChessBoardMap
 		}
 
 		fromBoard.move(fromSquare, toSquare)
+		this.update()
 	}
 
 	get(t: number, u: number)
@@ -162,12 +165,19 @@ class ChessBoardMap
 		return universe[t]
 	}
 
+	addBoard(u: number, board: ChessBoard)
+	{
+		const universe = this.map[u - this.minU]
+
+		universe.push(board)
+	}
+
 	update()
 	{
 		const map = document.createElement('div')
 		map.classList.add('map')
 
-		for (let y = 0; y < this.minU + this.map.length; y++)
+		for (let y = 0; y < this.map.length; y++)
 		{
 			let row = document.createElement('div')
 			row.className = 'row'
@@ -180,7 +190,7 @@ class ChessBoardMap
 					<div class='empty board'></div>
 					`)
 
-					return
+					continue
 				}
 
 				const board = this.map[y][x].render()
@@ -196,8 +206,9 @@ class ChessBoardMap
 
 	clone(chessBoard: ChessBoard)
 	{
-		const newPos = chessBoard.boardMapPos.slice()
-		newPos[0]++
+		let { t, u } = chessBoard.boardMapPos
+		const newPos = chessBoard.boardMapPos.clone()
+		newPos.t++
 
 		const nextTurn = chessBoard.turn == Colour.White
 			? Colour.Black
@@ -208,7 +219,42 @@ class ChessBoardMap
 
 		newBoard.legalStuff = chessBoard.legalStuff.clone(newBoard)
 
-		this.map[newPos[1] - this.minU][newPos[0]] = newBoard
+		// We either add a new board to the current universe,
+		// or create a new universe if the current universe already
+		// has a next board.
+
+		t++
+
+		if (this.get(t, u) == null)
+		{
+			// We can attach the new board to the current universe.
+
+			this.addBoard(u, newBoard)
+
+			return newBoard
+		}
+
+		// We have to create a new universe.
+
+		const newUniverse = Array(t).fill(null)
+		newUniverse.push(newBoard)
+
+		if (chessBoard.turn == Colour.White)
+		{
+			// Append at the end for white.
+
+			this.map.push(newUniverse)
+			newPos.u = this.maxU
+		}
+		else
+		{
+			// Prepend to the beginning for black.
+
+			this.minU--
+			this.map.unshift(newUniverse)
+			newPos.u = this.minU
+		}
+
 
 		return newBoard
 	}

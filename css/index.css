@@ -11,7 +11,7 @@ body
 {
 	margin: 0;
 	background-color: #777;
-	min-height: 100vh;
+	height: 100vh;
 
 	display: flex;
 	align-items: center;
@@ -20,8 +20,8 @@ body
 
 .chess-board-map
 {
-	max-width: 100%;
-	max-height: 100%;
+	width: var(--board-size);
+	height: var(--board-size);
 	overflow: hidden;
 	padding: calc(50vh - var(--board-size) / 2) calc(50vw - var(--board-size) / 2);
 }
@@ -52,6 +52,7 @@ body
 {
 	width: calc(var(--square-size) * 8);
 	height: calc(var(--square-size) * 8);
+	border-color: transparent;
 }
 
 .board-row
