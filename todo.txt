@@ -1,0 +1,17 @@
+Todo:
+  - Optimise ChessBoardMap.update() to only update changed boards.
+  - Make scrolling look smoother.
+  - Create zoom feature using the mousewheel.
+  - Make everything work on mobile.
+
+Doing:
+  - Think about whether pawns can move two spaces into another dimension.
+  - Think about whether en passant and castling can be done in
+    multiple dimensions and how exactly that would work.
+      => apparently the original game does not allow this.
+  - Think about whether the king and queen should be able to move in any number
+    of dimensions, or only in one or two dimensions.
+      => in the original game, they move in any number of dimensions.
+
+Done:
+  - Allow dragging a piece to another chessboard.
