@@ -1,20 +1,3 @@
-class Square
-{
-	x: number
-	y: number
-
-	constructor(x: number, y: number)
-	{
-		this.x = x
-		this.y = y
-	}
-
-	clone()
-	{
-		return new Square(this.x, this.y)
-	}
-}
-
 /**
  * Class that holds the legal stuff for a chess board.
  * Holds everything that is needed to check if a move is legal.
@@ -125,7 +108,7 @@ class ChessBoardLegalStuff
 							Colour.White, ChessPieceType.King))
 						{
 							console.log(`white is in check because (${ piece.type }) ${ x } ${ y } can move to ${ move.x } ${ move.y }`)
-							this.whiteKing = new Square(move.x, move.y)
+							this.whiteKing = this.square(move.x, move.y)
 							return true
 						}
 					}
@@ -156,7 +139,7 @@ class ChessBoardLegalStuff
 							Colour.Black, ChessPieceType.King))
 						{
 							console.log(`black is in check because (${ piece.type }) ${ x } ${ y } can move to ${ move.x } ${ move.y }`)
-							this.blackKing = new Square(move.x, move.y)
+							this.blackKing = this.square(move.x, move.y)
 							return true
 						}
 					}
@@ -228,9 +211,368 @@ class ChessBoardLegalStuff
 		return false
 	}
 
+	square(x: number, y: number): Square5D
+	{
+		const square2D = new Square(x, y)
+		return Square5D.fromSquare2D(square2D, this.board)
+	}
+
+	moveLineHelper(x: number, y: number, movement: Movement,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const otherColour = colour == Colour.White
+			? Colour.Black : Colour.White
+
+		let square = this.square(x, y).relativeSquare([ movement ])
+
+		while (square.exists())
+		{
+			const piece = square.getPiece()
+
+			if (piece != null && piece.colour == colour)
+			{
+				break
+			}
+
+			if (!checkCheck || this.isLegal(x, y, square))
+			{
+				moves.push(square.clone())
+			}
+
+			if (piece != null && piece.colour == otherColour)
+			{
+				break
+			}
+
+			square = square.relativeSquare([ movement ])
+		}
+	}
+
+	moveLine(x: number, y: number, dimension: Dimension,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		// Forward movement through this dimension.
+
+		this.moveLineHelper(x, y,
+			{ dimension, magnitude: 1 },
+			moves, checkCheck, colour)
+
+		// Backward movement through this dimension.
+
+		this.moveLineHelper(x, y,
+			{ dimension, magnitude: -1 },
+			moves, checkCheck, colour)
+	}
+
+	moveLine1SquareHelper(x: number, y: number, movement: Movement,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const square = this.square(x, y).relativeSquare([ movement ])
+
+		if (!square.exists())
+		{
+			return
+		}
+
+		const piece = square.getPiece()
+
+		if (piece != null && piece.colour == colour)
+		{
+			return false
+		}
+
+		if (!checkCheck || this.isLegal(x, y, square))
+		{
+			moves.push(square.clone())
+		}
+
+		return true
+	}
+
+	moveLine1Square(x: number, y: number, dimension: Dimension,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		// Forward movement through this dimension.
+
+		this.moveLine1SquareHelper(x, y,
+			{ dimension, magnitude: 1 },
+			moves, checkCheck, colour)
+
+		// Backward movement through this dimension.
+
+		this.moveLine1SquareHelper(x, y,
+			{ dimension, magnitude: -1 },
+			moves, checkCheck, colour)
+	}
+
+	moveForward1Square(x: number, y: number, dimension: Dimension,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const magnitude = colour == Colour.White ? 1 : -1
+		const movement = { dimension, magnitude }
+
+		const square = this.square(x, y).relativeSquare([ movement ])
+
+		if (!square.exists() || square.getPiece() != null)
+		{
+			return
+		}
+
+		return this.moveLine1SquareHelper(x, y, movement,
+			moves, checkCheck, colour)
+	}
+
+	moveForward1Or2Squares(x: number, y: number, dimension: Dimension,
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		if (!this.moveForward1Square(x, y, dimension, moves,
+			checkCheck, colour))
+		{
+			return
+		}
+
+		const magnitude = colour == Colour.White ? 2 : -2
+
+		this.moveLine1SquareHelper(x, y,
+			{ dimension, magnitude },
+			moves, checkCheck, colour)
+	}
+
+	moveDiagHelper(x: number, y: number, movements: [ Movement, Movement ],
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const otherColour = colour == Colour.White
+			? Colour.Black : Colour.White
+
+		let square = this.square(x, y).relativeSquare(movements)
+
+		while (square.exists())
+		{
+			const piece = square.getPiece()
+
+			if (piece != null && piece.colour == colour)
+			{
+				break
+			}
+
+			if (!checkCheck || this.isLegal(x, y, square))
+			{
+				moves.push(square.clone())
+			}
+
+			if (piece != null && piece.colour == otherColour)
+			{
+				break
+			}
+
+			square = square.relativeSquare(movements)
+		}
+	}
+
+	moveDiag(x: number, y: number, dimension: [ Dimension, Dimension ],
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		// Positive positive diagonal.
+
+		this.moveDiagHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 1 },
+			{ dimension: dimension[1], magnitude: 1 }
+		], moves, checkCheck, colour)
+
+		// Positive negative diagonal.
+
+		this.moveDiagHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 1 },
+			{ dimension: dimension[1], magnitude: -1 }
+		], moves, checkCheck, colour)
+
+		// Negative positive diagonal.
+
+		this.moveDiagHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -1 },
+			{ dimension: dimension[1], magnitude: 1 }
+		], moves, checkCheck, colour)
+
+		// Negative negative diagonal.
+
+		this.moveDiagHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -1 },
+			{ dimension: dimension[1], magnitude: -1 }
+		], moves, checkCheck, colour)
+	}
+
+	moveDiag1SquareHelper(x: number, y: number, movements: [ Movement, Movement ],
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const square = this.square(x, y).relativeSquare(movements)
+
+		if (!square.exists())
+		{
+			return
+		}
+
+		const piece = square.getPiece()
+
+		if (piece != null && piece.colour == colour)
+		{
+			return
+		}
+
+		if (!checkCheck || this.isLegal(x, y, square))
+		{
+			moves.push(square.clone())
+		}
+	}
+
+	moveDiag1Square(x: number, y: number, dimension: [ Dimension, Dimension ],
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		// Positive positive diagonal.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 1 },
+			{ dimension: dimension[1], magnitude: 1 }
+		], moves, checkCheck, colour)
+
+		// Positive negative diagonal.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 1 },
+			{ dimension: dimension[1], magnitude: -1 }
+		], moves, checkCheck, colour)
+
+		// Negative positive diagonal.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -1 },
+			{ dimension: dimension[1], magnitude: 1 }
+		], moves, checkCheck, colour)
+
+		// Negative negative diagonal.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -1 },
+			{ dimension: dimension[1], magnitude: -1 }
+		], moves, checkCheck, colour)
+	}
+
+	moveLShape(x: number, y: number, dimension: [ Dimension, Dimension ],
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		// Positive positive L shape 1.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 1 },
+			{ dimension: dimension[1], magnitude: 2 }
+		], moves, checkCheck, colour)
+
+		// Positive positive L shape 2.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 2 },
+			{ dimension: dimension[1], magnitude: 1 }
+		], moves, checkCheck, colour)
+
+		// Positive negative L shape 1.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 1 },
+			{ dimension: dimension[1], magnitude: -2 }
+		], moves, checkCheck, colour)
+
+		// Positive negative L shape 2.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -2 },
+			{ dimension: dimension[1], magnitude: 1 }
+		], moves, checkCheck, colour)
+
+		// Negative positive L shape 1.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -1 },
+			{ dimension: dimension[1], magnitude: 2 }
+		], moves, checkCheck, colour)
+
+		// Negative positive L shape 2.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: 2 },
+			{ dimension: dimension[1], magnitude: -1 }
+		], moves, checkCheck, colour)
+
+		// Negative negative L shape 1.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -1 },
+			{ dimension: dimension[1], magnitude: -2 }
+		], moves, checkCheck, colour)
+
+		// Negative negative L shape 2.
+
+		this.moveDiag1SquareHelper(x, y, [
+			{ dimension: dimension[0], magnitude: -2 },
+			{ dimension: dimension[1], magnitude: -1 }
+		], moves, checkCheck, colour)
+	}
+
+	moveDiagCapture1SquareHelper(x: number, y: number, movements: [ Movement, Movement ],
+		moves: Square5D[], checkCheck: boolean, colour: Colour)
+	{
+		const otherColour = colour == Colour.White
+			? Colour.Black : Colour.White
+
+		const square = this.square(x, y).relativeSquare(movements)
+
+		if (!square.exists())
+		{
+			return
+		}
+
+		const capture = square.getPiece()
+
+		if (capture != null && capture.colour == otherColour)
+		{
+			if (!checkCheck || this.isLegal(x, y, square))
+			{
+				moves.push(square)
+			}
+		}
+	}
+
+	moveDiagCapture1Square(x: number, y: number, moves: Square5D[],
+		checkCheck: boolean, colour: Colour)
+	{
+		const magnitude = colour == Colour.White ? 1 : -1
+
+		// Capture over the same board.
+
+		this.moveDiagCapture1SquareHelper(x, y, [
+			{ dimension: Dimension.X, magnitude: -1 },
+			{ dimension: Dimension.Y, magnitude }
+		], moves, checkCheck, colour)
+
+		this.moveDiagCapture1SquareHelper(x, y, [
+			{ dimension: Dimension.X, magnitude: 1 },
+			{ dimension: Dimension.Y, magnitude }
+		], moves, checkCheck, colour)
+
+		// Capture over a diagonal board
+
+		this.moveDiagCapture1SquareHelper(x, y, [
+			{ dimension: Dimension.T, magnitude: -1 },
+			{ dimension: Dimension.U, magnitude }
+		], moves, checkCheck, colour)
+
+		this.moveDiagCapture1SquareHelper(x, y, [
+			{ dimension: Dimension.T, magnitude: 1 },
+			{ dimension: Dimension.U, magnitude }
+		], moves, checkCheck, colour)
+	}
+
 	possibleMoves(x: number, y: number, checkCheck: boolean)
 	{
-		const moves: Square[] = []
+		const moves: Square5D[] = []
 
 		if (x >= 8 || y >= 8 || x < 0 || y < 0)
 		{
@@ -246,41 +588,25 @@ class ChessBoardLegalStuff
 
 		if (piece.is(Colour.White, ChessPieceType.Pawn))
 		{
-			if (this.board.pieceAt(x, y + 1) == null)
+			for (const dimension of forwardDimensions)
 			{
-				if (!checkCheck || this.isLegal(x, y, x, y + 1))
+				if (y == 1)
 				{
-					moves.push(new Square(x, y + 1))
+					this.moveForward1Or2Squares(x, y,
+						dimension, moves,
+						checkCheck, Colour.White)
 				}
-
-				if (y == 1 && this.board.pieceAt(x, y + 2) == null)
+				else
 				{
-					if (!checkCheck || this.isLegal(x, y, x, y + 2))
-					{
-						moves.push(new Square(x, y + 2))
-					}
+					this.moveForward1Square(x, y,
+						dimension, moves,
+						checkCheck, Colour.White)
 				}
 			}
 
-			const leftCapture = this.board.pieceAt(x - 1, y + 1)
+			this.moveDiagCapture1Square(x, y, moves, checkCheck, Colour.White)
 
-			if (leftCapture != null && leftCapture.colour == Colour.Black)
-			{
-				if (!checkCheck || this.isLegal(x, y, x - 1, y + 1))
-				{
-					moves.push(new Square(x - 1, y + 1))
-				}
-			}
-
-			const rightCapture = this.board.pieceAt(x + 1, y + 1)
-
-			if (rightCapture != null && rightCapture.colour == Colour.Black)
-			{
-				if (!checkCheck || this.isLegal(x, y, x + 1, y + 1))
-				{
-					moves.push(new Square(x + 1, y + 1))
-				}
-			}
+			// Todo: En passant in multiple dimensions??!!
 
 			const leftEnPassant = this.board.pieceAt(x - 1, y)
 
@@ -288,9 +614,9 @@ class ChessBoardLegalStuff
 				&& leftEnPassant.is(Colour.Black, ChessPieceType.Pawn)
 				&& this.blackEnPassant[x - 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x - 1, y + 1))
+				if (!checkCheck || this.isLegal(x, y, this.square(x - 1, y + 1)))
 				{
-					moves.push(new Square(x - 1, y + 1))
+					moves.push(this.square(x - 1, y + 1))
 				}
 			}
 
@@ -300,50 +626,34 @@ class ChessBoardLegalStuff
 				&& rightEnPassant.is(Colour.Black, ChessPieceType.Pawn)
 				&& this.blackEnPassant[x + 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x + 1, y + 1))
+				if (!checkCheck || this.isLegal(x, y, this.square(x + 1, y + 1)))
 				{
-					moves.push(new Square(x + 1, y + 1))
+					moves.push(this.square(x + 1, y + 1))
 				}
 			}
 		}
 
 		if (piece.is(Colour.Black, ChessPieceType.Pawn))
 		{
-			if (this.board.pieceAt(x, y - 1) == null)
+			for (const dimension of forwardDimensions)
 			{
-				if (!checkCheck || this.isLegal(x, y, x, y - 1))
+				if (y == 6)
 				{
-					moves.push(new Square(x, y - 1))
+					this.moveForward1Or2Squares(x, y,
+						dimension, moves,
+						checkCheck, Colour.Black)
 				}
-
-				if (y == 6 && this.board.pieceAt(x, y - 2) == null)
+				else
 				{
-					if (!checkCheck || this.isLegal(x, y, x, y - 2))
-					{
-						moves.push(new Square(x, y - 2))
-					}
+					this.moveForward1Square(x, y,
+						dimension, moves,
+						checkCheck, Colour.Black)
 				}
 			}
 
-			const leftCapture = this.board.pieceAt(x - 1, y - 1)
+			this.moveDiagCapture1Square(x, y, moves, checkCheck, Colour.Black)
 
-			if (leftCapture != null && leftCapture.colour == Colour.White)
-			{
-				if (!checkCheck || this.isLegal(x, y, x - 1, y - 1))
-				{
-					moves.push(new Square(x - 1, y - 1))
-				}
-			}
-
-			const rightCapture = this.board.pieceAt(x + 1, y - 1)
-
-			if (rightCapture != null && rightCapture.colour == Colour.White)
-			{
-				if (!checkCheck || this.isLegal(x, y, x + 1, y - 1))
-				{
-					moves.push(new Square(x + 1, y - 1))
-				}
-			}
+			// Todo: En passant in multiple dimensions??!!
 
 			const leftEnPassant = this.board.pieceAt(x - 1, y)
 
@@ -351,9 +661,9 @@ class ChessBoardLegalStuff
 				&& leftEnPassant.is(Colour.White, ChessPieceType.Pawn)
 				&& this.whiteEnPassant[x - 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x - 1, y - 1))
+				if (!checkCheck || this.isLegal(x, y, this.square(x - 1, y - 1)))
 				{
-					moves.push(new Square(x - 1, y - 1))
+					moves.push(this.square(x - 1, y - 1))
 				}
 			}
 
@@ -363,1144 +673,120 @@ class ChessBoardLegalStuff
 				&& rightEnPassant.is(Colour.White, ChessPieceType.Pawn)
 				&& this.whiteEnPassant[x + 1])
 			{
-				if (!checkCheck || this.isLegal(x, y, x + 1, y - 1))
+				if (!checkCheck || this.isLegal(x, y, this.square(x + 1, y - 1)))
 				{
-					moves.push(new Square(x + 1, y - 1))
+					moves.push(this.square(x + 1, y - 1))
 				}
 			}
 		}
 
 		if (piece.is(Colour.White, ChessPieceType.Bishop))
 		{
-			let diag = new Square(x + 1, y + 1)
-
-			while (diag.x < 8 && diag.y < 8)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y++
-			}
-
-			diag = new Square(x + 1, y - 1)
-
-			while (diag.x < 8 && diag.y >= 0)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y--
-			}
-
-			diag = new Square(x - 1, y + 1)
-
-			while (diag.x >= 0 && diag.y < 8)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y++
-			}
-
-			diag = new Square(x - 1, y - 1)
-
-			while (diag.x >= 0 && diag.y >= 0)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y--
+				this.moveDiag(x, y, dimensions, moves, checkCheck, Colour.White)
 			}
 		}
 
 		if (piece.is(Colour.Black, ChessPieceType.Bishop))
 		{
-			let diag = new Square(x + 1, y + 1)
-
-			while (diag.x < 8 && diag.y < 8)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y++
-			}
-
-			diag = new Square(x + 1, y - 1)
-
-			while (diag.x < 8 && diag.y >= 0)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y--
-			}
-
-			diag = new Square(x - 1, y + 1)
-
-			while (diag.x >= 0 && diag.y < 8)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y++
-			}
-
-			diag = new Square(x - 1, y - 1)
-
-			while (diag.x >= 0 && diag.y >= 0)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y--
+				this.moveDiag(x, y, dimensions, moves, checkCheck, Colour.Black)
 			}
 		}
 
 		if (piece.is(Colour.White, ChessPieceType.Knight))
 		{
-			if (x - 1 >= 0 && y - 2 >= 0)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(x - 1, y - 2)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y - 2))
-					{
-						moves.push(new Square(x - 1, y - 2))
-					}
-				}
-			}
-
-			if (x - 2 >= 0 && y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x - 2, y - 1)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 2, y - 1))
-					{
-						moves.push(new Square(x - 2, y - 1))
-					}
-				}
-			}
-
-			if (x + 1 < 8 && y - 2 >= 0)
-			{
-				const piece = this.board.pieceAt(x + 1, y - 2)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y - 2))
-					{
-						moves.push(new Square(x + 1, y - 2))
-					}
-				}
-			}
-
-			if (x + 2 < 8 && y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x + 2, y - 1)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 2, y - 1))
-					{
-						moves.push(new Square(x + 2, y - 1))
-					}
-				}
-			}
-
-			if (x - 1 >= 0 && y + 2 < 8)
-			{
-				const piece = this.board.pieceAt(x - 1, y + 2)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y + 2))
-					{
-						moves.push(new Square(x - 1, y + 2))
-					}
-				}
-			}
-
-			if (x - 2 >= 0 && y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x - 2, y + 1)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 2, y + 1))
-					{
-						moves.push(new Square(x - 2, y + 1))
-					}
-				}
-			}
-
-			if (x + 1 < 8 && y + 2 < 8)
-			{
-				const piece = this.board.pieceAt(x + 1, y + 2)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y + 2))
-					{
-						moves.push(new Square(x + 1, y + 2))
-					}
-				}
-			}
-
-			if (x + 2 < 8 && y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x + 2, y + 1)
-
-				if (piece == null || piece.colour != Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 2, y + 1))
-					{
-						moves.push(new Square(x + 2, y + 1))
-					}
-				}
+				this.moveLShape(x, y, dimensions, moves, checkCheck, Colour.White)
 			}
 		}
 
 		if (piece.is(Colour.Black, ChessPieceType.Knight))
 		{
-			if (x - 1 >= 0 && y - 2 >= 0)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(x - 1, y - 2)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y - 2))
-					{
-						moves.push(new Square(x - 1, y - 2))
-					}
-				}
-			}
-
-			if (x - 2 >= 0 && y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x - 2, y - 1)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 2, y - 1))
-					{
-						moves.push(new Square(x - 2, y - 1))
-					}
-				}
-			}
-
-			if (x + 1 < 8 && y - 2 >= 0)
-			{
-				const piece = this.board.pieceAt(x + 1, y - 2)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y - 2))
-					{
-						moves.push(new Square(x + 1, y - 2))
-					}
-				}
-			}
-
-			if (x + 2 < 8 && y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x + 2, y - 1)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 2, y - 1))
-					{
-						moves.push(new Square(x + 2, y - 1))
-					}
-				}
-			}
-
-			if (x - 1 >= 0 && y + 2 < 8)
-			{
-				const piece = this.board.pieceAt(x - 1, y + 2)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y + 2))
-					{
-						moves.push(new Square(x - 1, y + 2))
-					}
-				}
-			}
-
-			if (x - 2 >= 0 && y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x - 2, y + 1)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 2, y + 1))
-					{
-						moves.push(new Square(x - 2, y + 1))
-					}
-				}
-			}
-
-			if (x + 1 < 8 && y + 2 < 8)
-			{
-				const piece = this.board.pieceAt(x + 1, y + 2)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y + 2))
-					{
-						moves.push(new Square(x + 1, y + 2))
-					}
-				}
-			}
-
-			if (x + 2 < 8 && y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x + 2, y + 1)
-
-				if (piece == null || piece.colour != Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 2, y + 1))
-					{
-						moves.push(new Square(x + 2, y + 1))
-					}
-				}
+				this.moveLShape(x, y, dimensions, moves, checkCheck, Colour.Black)
 			}
 		}
 
 		if (piece.is(Colour.White, ChessPieceType.Rook))
 		{
-			let line = new Square(x + 1, y)
-
-			while (line.x < 8)
+			for (const dimension of dimensions)
 			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.x++
-			}
-
-			line = new Square(x - 1, y)
-
-			while (line.x >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.x--
-			}
-
-			line = new Square(x, y + 1)
-
-			while (line.y < 8)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.y++
-			}
-
-			line = new Square(x, y - 1)
-
-			while (line.y >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.y--
+				this.moveLine(x, y, dimension, moves,
+					checkCheck, Colour.White)
 			}
 		}
 
 		if (piece.is(Colour.Black, ChessPieceType.Rook))
 		{
-			let line = new Square(x + 1, y)
-
-			while (line.x < 8)
+			for (const dimension of dimensions)
 			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.x++
-			}
-
-			line = new Square(x - 1, y)
-
-			while (line.x >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.x--
-			}
-
-			line = new Square(x, y + 1)
-
-			while (line.y < 8)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.y++
-			}
-
-			line = new Square(x, y - 1)
-
-			while (line.y >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.y--
+				this.moveLine(x, y, dimension, moves,
+					checkCheck, Colour.Black)
 			}
 		}
 
 		if (piece.is(Colour.White, ChessPieceType.Queen))
 		{
-			let diag = new Square(x + 1, y + 1)
-
-			while (diag.x < 8 && diag.y < 8)
+			for (const dimension of dimensions)
 			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y++
+				this.moveLine(x, y, dimension, moves,
+					checkCheck, Colour.White)
 			}
 
-			diag = new Square(x - 1, y - 1)
-
-			while (diag.x >= 0 && diag.y >= 0)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y--
-			}
-
-			diag = new Square(x + 1, y - 1)
-
-			while (diag.x < 8 && diag.y >= 0)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y--
-			}
-
-			diag = new Square(x - 1, y + 1)
-
-			while (diag.x >= 0 && diag.y < 8)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y++
-			}
-
-			let line = new Square(x + 1, y)
-
-			while (line.x < 8)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.x++
-			}
-
-			line = new Square(x - 1, y)
-
-			while (line.x >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.x--
-			}
-
-			line = new Square(x, y + 1)
-
-			while (line.y < 8)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.y++
-			}
-
-			line = new Square(x, y - 1)
-
-			while (line.y >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				line.y--
+				this.moveDiag(x, y, dimensions, moves,
+					checkCheck, Colour.White)
 			}
 		}
 
 		if (piece.is(Colour.Black, ChessPieceType.Queen))
 		{
-			let diag = new Square(x + 1, y + 1)
-
-			while (diag.x < 8 && diag.y < 8)
+			for (const dimension of dimensions)
 			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y++
+				this.moveLine(x, y, dimension, moves,
+					checkCheck, Colour.Black)
 			}
 
-			diag = new Square(x - 1, y - 1)
-
-			while (diag.x >= 0 && diag.y >= 0)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y--
-			}
-
-			diag = new Square(x + 1, y - 1)
-
-			while (diag.x < 8 && diag.y >= 0)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x++
-				diag.y--
-			}
-
-			diag = new Square(x - 1, y + 1)
-
-			while (diag.x >= 0 && diag.y < 8)
-			{
-				const piece = this.board.pieceAt(diag.x, diag.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, diag.x, diag.y))
-				{
-					moves.push(diag.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				diag.x--
-				diag.y++
-			}
-
-			let line = new Square(x + 1, y)
-
-			while (line.x < 8)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.x++
-			}
-
-			line = new Square(x - 1, y)
-
-			while (line.x >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.x--
-			}
-
-			line = new Square(x, y + 1)
-
-			while (line.y < 8)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.y++
-			}
-
-			line = new Square(x, y - 1)
-
-			while (line.y >= 0)
-			{
-				const piece = this.board.pieceAt(line.x, line.y)
-
-				if (piece != null && piece.colour == Colour.Black)
-				{
-					break
-				}
-
-				if (!checkCheck || this.isLegal(x, y, line.x, line.y))
-				{
-					moves.push(line.clone())
-				}
-
-				if (piece != null && piece.colour == Colour.White)
-				{
-					break
-				}
-
-				line.y--
+				this.moveDiag(x, y, dimensions, moves,
+					checkCheck, Colour.Black)
 			}
 		}
 
 		if (piece.is(Colour.White, ChessPieceType.King))
 		{
-			if (x + 1 < 8 && y + 1 < 8)
+			for (const dimension of dimensions)
 			{
-				const piece = this.board.pieceAt(x + 1, y + 1)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y + 1))
-					{
-						moves.push(new Square(x + 1, y + 1))
-					}
-				}
+				this.moveLine1Square(x, y, dimension, moves,
+					checkCheck, Colour.White)
 			}
 
-			if (x + 1 < 8 && y - 1 >= 0)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(x + 1, y - 1)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y - 1))
-					{
-						moves.push(new Square(x + 1, y - 1))
-					}
-				}
+				this.moveDiag1Square(x, y, dimensions, moves,
+					checkCheck, Colour.White)
 			}
 
-			if (x - 1 >= 0 && y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x - 1, y + 1)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y + 1))
-					{
-						moves.push(new Square(x - 1, y + 1))
-					}
-				}
-			}
-
-			if (x - 1 >= 0 && y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x - 1, y - 1)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y - 1))
-					{
-						moves.push(new Square(x - 1, y - 1))
-					}
-				}
-			}
-
-			if (x + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x + 1, y)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y))
-					{
-						moves.push(new Square(x + 1, y))
-					}
-				}
-			}
-
-			if (x - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x - 1, y)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y))
-					{
-						moves.push(new Square(x - 1, y))
-					}
-				}
-			}
-
-			if (y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x, y + 1)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x, y + 1))
-					{
-						moves.push(new Square(x, y + 1))
-					}
-				}
-			}
-
-			if (y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x, y - 1)
-
-				if (piece == null || piece.colour == Colour.Black)
-				{
-					if (!checkCheck || this.isLegal(x, y, x, y - 1))
-					{
-						moves.push(new Square(x, y - 1))
-					}
-				}
-			}
+			// Todo: Castling in multiple dimensions??!!
+			// Todo: Make it work when there are multiple kings
+			// on the board.
 
 			if (!this.whiteKingMoved && !this.whiteRightRookMoved
 				&& this.board.pieceAt(x + 1, y) == null
 				&& this.board.pieceAt(x + 2, y) == null
 				&& checkCheck
 				&& !this.whiteInCheck()
-				&& this.isLegal(x, y, x + 1, y)
-				&& this.isLegal(x, y, x + 2, y))
+				&& this.isLegal(x, y, this.square(x + 1, y))
+				&& this.isLegal(x, y, this.square(x + 2, y)))
 			{
-				moves.push(new Square(x + 2, y))
+				moves.push(this.square(x + 2, y))
 			}
 
 			if (!this.whiteKingMoved && !this.whiteLeftRookMoved
@@ -1509,167 +795,80 @@ class ChessBoardLegalStuff
 				&& this.board.pieceAt(x - 3, y) == null
 				&& checkCheck
 				&& !this.whiteInCheck()
-				&& this.isLegal(x, y, x - 1, y)
-				&& this.isLegal(x, y, x - 2, y)
-				&& this.isLegal(x, y, x - 3, y))
+				&& this.isLegal(x, y, this.square(x - 1, y))
+				&& this.isLegal(x, y, this.square(x - 2, y))
+				&& this.isLegal(x, y, this.square(x - 3, y)))
 			{
-				moves.push(new Square(x - 2, y))
+				moves.push(this.square(x - 2, y))
 			}
 		}
 
 		if (piece.is(Colour.Black, ChessPieceType.King))
 		{
-			if (x + 1 < 8 && y + 1 < 8)
+			for (const dimension of dimensions)
 			{
-				const piece = this.board.pieceAt(x + 1, y + 1)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y + 1))
-					{
-						moves.push(new Square(x + 1, y + 1))
-					}
-				}
+				this.moveLine1Square(x, y, dimension, moves,
+					checkCheck, Colour.Black)
 			}
 
-			if (x + 1 < 8 && y - 1 >= 0)
+			for (const dimensions of dimensions2Combinations)
 			{
-				const piece = this.board.pieceAt(x + 1, y - 1)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y - 1))
-					{
-						moves.push(new Square(x + 1, y - 1))
-					}
-				}
+				this.moveDiag1Square(x, y, dimensions, moves,
+					checkCheck, Colour.Black)
 			}
 
-			if (x - 1 >= 0 && y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x - 1, y + 1)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y + 1))
-					{
-						moves.push(new Square(x - 1, y + 1))
-					}
-				}
-			}
-
-			if (x - 1 >= 0 && y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x - 1, y - 1)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y - 1))
-					{
-						moves.push(new Square(x - 1, y - 1))
-					}
-				}
-			}
-
-			if (x + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x + 1, y)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x + 1, y))
-					{
-						moves.push(new Square(x + 1, y))
-					}
-				}
-			}
-
-			if (x - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x - 1, y)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x - 1, y))
-					{
-						moves.push(new Square(x - 1, y))
-					}
-				}
-			}
-
-			if (y + 1 < 8)
-			{
-				const piece = this.board.pieceAt(x, y + 1)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x, y + 1))
-					{
-						moves.push(new Square(x, y + 1))
-					}
-				}
-			}
-
-			if (y - 1 >= 0)
-			{
-				const piece = this.board.pieceAt(x, y - 1)
-
-				if (piece == null || piece.colour == Colour.White)
-				{
-					if (!checkCheck || this.isLegal(x, y, x, y - 1))
-					{
-						moves.push(new Square(x, y - 1))
-					}
-				}
-			}
+			// Todo: Castling in multiple dimensions??!!
+			// Todo: Make it work when there are multiple kings
+			// on the board.
 
 			if (!this.blackKingMoved && !this.blackRightRookMoved
 				&& this.board.pieceAt(x + 1, y) == null
 				&& this.board.pieceAt(x + 2, y) == null
 				&& checkCheck
 				&& !this.blackInCheck()
-				&& this.isLegal(x, y, x + 1, y)
-				&& this.isLegal(x, y, x + 2, y))
+				&& this.isLegal(x, y, this.square(x + 1, y))
+				&& this.isLegal(x, y, this.square(x + 2, y)))
 			{
-				moves.push(new Square(x + 2, y))
+				moves.push(this.square(x + 2, y))
 			}
 
 			if (!this.blackKingMoved && !this.blackLeftRookMoved
 				&& this.board.pieceAt(x - 1, y) == null
 				&& this.board.pieceAt(x - 2, y) == null
+				&& this.board.pieceAt(x - 3, y) == null
 				&& checkCheck
 				&& !this.blackInCheck()
-				&& this.isLegal(x, y, x - 1, y)
-				&& this.isLegal(x, y, x - 2, y))
+				&& this.isLegal(x, y, this.square(x - 1, y))
+				&& this.isLegal(x, y, this.square(x - 2, y))
+				&& this.isLegal(x, y, this.square(x - 3, y)))
 			{
-				moves.push(new Square(x - 2, y))
+				moves.push(this.square(x - 2, y))
 			}
 		}
 
 		return moves
 	}
 
-	pretend(from: Square, to: Square)
+	pretend(from: Square, to: Square5D)
 	{
-		const oldPiece = this.board.pieceAt(to.x, to.y)
+		const oldPiece = to.getPiece()
 		const movedPiece = this.board.pieceAt(from.x, from.y)
 
 		this.board.setAt(from.x, from.y, null)
-		this.board.setAt(to.x, to.y, movedPiece)
+		to.getBoard().setAt(to.x, to.y, movedPiece)
 
 		return oldPiece
 	}
 
-	unpretend(from: Square, to: Square, oldPiece: ChessPiece)
+	unpretend(from: Square, to: Square5D, oldPiece: ChessPiece)
 	{
-		this.board.setAt(from.x, from.y, this.board.pieceAt(to.x, to.y))
-		this.board.setAt(to.x, to.y, oldPiece)
+		this.board.setAt(from.x, from.y, to.getPiece())
+		to.getBoard().setAt(to.x, to.y, oldPiece)
 	}
 
-	isLegal(xFrom: number, yFrom: number, xTo: number, yTo: number)
+	isLegal(xFrom: number, yFrom: number, to: Square5D)
 	{
-		const from = new Square(xFrom, yFrom)
-		const to = new Square(xTo, yTo)
+		const from = this.square(xFrom, yFrom)
 
 		const oldPiece = this.pretend(from, to)
 

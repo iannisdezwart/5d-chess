@@ -12,8 +12,6 @@ class ChessBoard
 	turn: Colour
 
 	boardEl: HTMLElement
-	draggingPiece: HTMLElement = null
-	draggingPieceSquare: number[] = null
 
 	legalStuff: ChessBoardLegalStuff
 
@@ -104,9 +102,17 @@ class ChessBoard
 		return this.boardMap.clone(this)
 	}
 
-	move(xFrom: number, yFrom: number, xTo: number, yTo: number)
+	move(fromSquare: Square5D, toSquare: Square5D)
 	{
-		if (!this.legalStuff.isLegal(xFrom, yFrom, xTo, yTo))
+		if (fromSquare.getBoard() != toSquare.getBoard())
+		{
+			throw new Error('Moving to different boards is not implemented')
+		}
+
+		const { x: xFrom, y: yFrom } = fromSquare
+		const { x: xTo, y: yTo } = toSquare
+
+		if (!this.legalStuff.isLegal(xFrom, yFrom, toSquare))
 		{
 			return
 		}
@@ -307,6 +313,8 @@ class ChessBoard
 	{
 		this.boardEl = document.createElement('div')
 		this.boardEl.classList.add('board')
+		this.boardEl.setAttribute('data-board-position',
+			this.boardMapPos.join(', '))
 
 		if (this.turn == Colour.White)
 		{
@@ -374,116 +382,7 @@ class ChessBoard
 			this.boardEl.appendChild(row)
 		}
 
-		this.boardEl.addEventListener('mousedown', this.mouseDownHandler.bind(this))
-		this.boardEl.addEventListener('touchstart', this.mouseDownHandler.bind(this))
-
-		this.boardEl.addEventListener('mousemove', this.mouseMoveHandler.bind(this))
-		this.boardEl.addEventListener('touchmove', this.mouseMoveHandler.bind(this))
-
-		this.boardEl.addEventListener('mouseup', this.mouseUpHandler.bind(this))
-		this.boardEl.addEventListener('toucheend', this.mouseUpHandler.bind(this))
-
 		return this.boardEl
-	}
-
-	pointedSquare(e: MouseEvent)
-	{
-		const boardRect = this.boardEl.getBoundingClientRect()
-		const { clientX, clientY } = e
-
-		const x = Math.floor((clientX - boardRect.x) / boardRect.width * 8)
-		const y = Math.floor((clientY - boardRect.y) / boardRect.height * 8)
-
-		return this.translatePointerPositionToSquare(x, y)
-	}
-
-	getSquare(x: number, y: number)
-	{
-		const sq = this.translatePointerPositionToSquare(x, y)
-		return this.boardEl.children[sq[1]].children[sq[0]]
-	}
-
-	mouseDownHandler(e: MouseEvent)
-	{
-		const target = e.target as HTMLElement
-
-		if (!target.classList.contains('piece')
-			|| !target.classList.contains('selectable'))
-		{
-			return
-		}
-
-		this.draggingPiece = target
-		this.draggingPieceSquare = this.pointedSquare(e)
-
-		const xFrom = this.draggingPieceSquare[0]
-		const yFrom = this.draggingPieceSquare[1]
-		const legalMoves = this.legalStuff.possibleMoves(xFrom, yFrom, true)
-
-		for (const { x, y } of legalMoves)
-		{
-			const square = this.getSquare(x, y)
-
-			square.classList.add('legal-move')
-		}
-	}
-
-	mouseMoveHandler(e: MouseEvent)
-	{
-		if (this.draggingPiece == null)
-		{
-			return
-		}
-
-		const { clientX, clientY } = e
-		const img = this.draggingPiece.querySelector<HTMLImageElement>('img')
-		const rect = this.draggingPiece.getBoundingClientRect()
-
-		const middleX = rect.x + rect.width / 2
-		const middleY = rect.y + rect.height / 2
-
-		const x = (clientX - middleX) / rect.width * 100
-		const y = (clientY - middleY) / rect.height * 100
-
-		img.style.transform = `translate(${ x }%, ${ y }%)`
-		img.style.zIndex = '1'
-	}
-
-	mouseUpHandler(e: MouseEvent)
-	{
-		if (this.draggingPiece == null)
-		{
-			return
-		}
-
-		const [ xFrom, yFrom ] = this.draggingPieceSquare
-		const [ xTo, yTo ] = this.pointedSquare(e)
-
-		const toSquare = this.getSquare(xTo, yTo)
-		const moveIsLegal = toSquare.classList.contains('legal-move')
-
-		const img = this.draggingPiece.querySelector<HTMLImageElement>('img')
-
-		img.style.transform = null
-		img.style.zIndex = null
-		this.draggingPiece = null
-
-		for (const square of [].slice.call(this.boardEl.querySelectorAll('.legal-move')))
-		{
-			square.classList.remove('legal-move')
-		}
-
-		if (xFrom == xTo && yFrom == yTo)
-		{
-			return
-		}
-
-		if (!moveIsLegal)
-		{
-			return
-		}
-
-		this.move(xFrom, yFrom, xTo, yTo)
 	}
 
 	static empty(boardMap: ChessBoardMap, boardMapPos: number[],
