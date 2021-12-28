@@ -1,6 +1,5 @@
 Todo:
   - Optimise ChessBoardMap.update() to only update changed boards.
-  - Fix bad performance when having lots of boards.
   - Make scrolling look smoother.
   - Create zoom feature using the mousewheel.
   - Make everything work on mobile.
@@ -21,3 +20,4 @@ Doing:
 
 Done:
   - Allow dragging a piece to another chessboard.
+  - Fix bad performance when having lots of boards.
