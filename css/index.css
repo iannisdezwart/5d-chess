@@ -7,23 +7,31 @@
 		* 2 + var(--board-margin-size) * 2);
 }
 
+/* Hide scrollbar */
+
+html
+{
+	-ms-overflow-style: none; /* IE and Edge */
+	scrollbar-width: none; /* Firefox */
+}
+
+html::-webkit-scrollbar
+{
+	display: none; /* Safari and Chrome */
+}
+
 body
 {
 	margin: 0;
 	background-color: #777;
 	height: 100vh;
-
-	display: flex;
-	align-items: center;
-	justify-content: center;
 }
 
 .chess-board-map
 {
-	width: var(--board-size);
-	height: var(--board-size);
-	overflow: hidden;
 	padding: calc(50vh - var(--board-size) / 2) calc(50vw - var(--board-size) / 2);
+	display: inline-block;
+
 }
 
 .chess-board-map .row
